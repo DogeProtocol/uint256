@@ -197,6 +197,70 @@ func TestSetBytes(t *testing.T) {
 	}
 }
 
+func Test64Bytes(t *testing.T) {
+	var data [64]byte
+
+	for i := byte(0); i < 64; i++ {
+		data[i] = i
+	}
+	z := new(Int)
+	z.SetBytes64(data[:])
+	ret := z.Bytes64()
+	if bytes.Compare(data[:], ret[:]) != 0 {
+		t.Fatalf("failed")
+	}
+
+	y := new(Int)
+	y.SetBytes(data[:])
+	ret = z.Bytes64()
+	if bytes.Compare(data[:], ret[:]) != 0 {
+		t.Fatalf("failed")
+	}
+
+	var retData [64]byte
+	y.WriteToSlice(retData[:])
+	if bytes.Compare(data[:], retData[:]) != 0 {
+		t.Fatalf("failed")
+	}
+
+	var retData2 [64]byte
+	y.WriteToArray64(&retData2)
+	if bytes.Compare(data[:], retData2[:]) != 0 {
+		t.Fatalf("failed")
+	}
+
+	x := y.Clone()
+	retData3 := x.Bytes64()
+	if bytes.Compare(data[:], retData3[:]) != 0 {
+		t.Fatalf("failed")
+	}
+
+	if x.BitLen() != 497 {
+		t.Fatalf("failed")
+	}
+
+	if x.Eq(y) == false {
+		t.Fatalf("failed")
+	}
+
+	if y.Eq(z) == false {
+		t.Fatalf("failed")
+	}
+
+	x.Clear()
+	if x.Eq(y) == true {
+		t.Fatalf("failed")
+	}
+
+	retData4 := x.Bytes64()
+	for i := byte(0); i < 64; i++ {
+		if retData4[i] != 0 {
+			t.Fatalf("failed")
+		}
+	}
+
+}
+
 func BenchmarkSetBytes(b *testing.B) {
 
 	val := new(Int)
