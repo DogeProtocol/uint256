@@ -147,7 +147,6 @@ func (z *Int) SetFromBig(b *big.Int) bool {
 // specification of minimum digits precision, output field
 // width, space or zero padding, and '-' for left or right
 // justification.
-//
 func (z *Int) Format(s fmt.State, ch rune) {
 	z.ToBig().Format(s, ch)
 }
@@ -185,6 +184,19 @@ func (z *Int) SetBytes32(in []byte) *Int {
 	z[2] = binary.BigEndian.Uint64(in[8:16])
 	z[1] = binary.BigEndian.Uint64(in[16:24])
 	z[0] = binary.BigEndian.Uint64(in[24:32])
+	return z
+}
+
+func (z *Int) SetBytes64(in []byte) *Int {
+	_ = in[63] // bounds check hint to compiler; see golang.org/issue/14808
+	z[7] = binary.BigEndian.Uint64(in[0:8])
+	z[6] = binary.BigEndian.Uint64(in[8:16])
+	z[5] = binary.BigEndian.Uint64(in[16:24])
+	z[4] = binary.BigEndian.Uint64(in[24:32])
+	z[3] = binary.BigEndian.Uint64(in[32:40])
+	z[2] = binary.BigEndian.Uint64(in[40:48])
+	z[1] = binary.BigEndian.Uint64(in[48:56])
+	z[0] = binary.BigEndian.Uint64(in[56:64])
 	return z
 }
 

@@ -1148,7 +1148,7 @@ func TestWriteToSlice(t *testing.T) {
 	// a too large buffer, already filled with stuff
 	// Should fill the leftmost 32 bytes, not touch the other things
 	dest = hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-	exp = hex2Bytes("fe7fb0d1f59dfe9492ffbf73683fd1e870eec79504c60144cc7f5fc2bad1e611ffffffffffffffff")
+	exp = hex2Bytes("0000000000000000fe7fb0d1f59dfe9492ffbf73683fd1e870eec79504c60144cc7f5fc2bad1e611")
 
 	fa.WriteToSlice(dest)
 	if !bytes.Equal(dest, exp) {

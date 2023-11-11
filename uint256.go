@@ -12,9 +12,12 @@ import (
 	"math/bits"
 )
 
+const MaxLength int = 64
+
 // Int is represented as an array of 4 uint64, in little-endian order,
 // so that Int[3] is the most significant, and Int[0] is the least significant
-type Int [4]uint64
+// The remaining 4 elemeents are just used to store data
+type Int [8]uint64
 
 // NewInt returns a new initialized Int.
 func NewInt(val uint64) *Int {
@@ -93,10 +96,29 @@ func (z *Int) SetBytes(buf []byte) *Int {
 		z.SetBytes30(buf)
 	case 31:
 		z.SetBytes31(buf)
+	case 32:
+		z.SetBytes32(buf)
+	case 64:
+		z.SetBytes64(buf)
 	default:
 		z.SetBytes32(buf[l-32:])
 	}
 	return z
+}
+
+// Bytes64 returns the value of z as a 64-byte big-endian array.
+func (z *Int) Bytes64() [64]byte {
+	// The PutUint64()s are inlined and we get 4x (load, bswap, store) instructions.
+	var b [64]byte
+	binary.BigEndian.PutUint64(b[0:8], z[7])
+	binary.BigEndian.PutUint64(b[8:16], z[6])
+	binary.BigEndian.PutUint64(b[16:24], z[5])
+	binary.BigEndian.PutUint64(b[24:32], z[4])
+	binary.BigEndian.PutUint64(b[32:40], z[3])
+	binary.BigEndian.PutUint64(b[40:48], z[2])
+	binary.BigEndian.PutUint64(b[48:56], z[1])
+	binary.BigEndian.PutUint64(b[56:64], z[0])
+	return b
 }
 
 // Bytes32 returns the value of z as a 32-byte big-endian array.
@@ -122,8 +144,8 @@ func (z *Int) Bytes20() [20]byte {
 
 // Bytes returns the value of z as a big-endian byte slice.
 func (z *Int) Bytes() []byte {
-	b := z.Bytes32()
-	return b[32-z.ByteLen():]
+	b := z.Bytes64()
+	return b[MaxLength-z.ByteLen():]
 }
 
 // WriteToSlice writes the content of z into the given byteslice.
@@ -135,11 +157,18 @@ func (z *Int) WriteToSlice(dest []byte) {
 	// ensure 32 bytes
 	// A too large buffer. Fill last 32 bytes
 	end := len(dest) - 1
-	if end > 31 {
-		end = 31
+	if end > MaxLength-1 {
+		end = MaxLength - 1
 	}
 	for i := 0; i <= end; i++ {
 		dest[end-i] = byte(z[i/8] >> uint64(8*(i%8)))
+	}
+}
+
+// WriteToArray64 writes all 64 bytes of z to the destination array, including zero-bytes
+func (z *Int) WriteToArray64(dest *[64]byte) {
+	for i := 0; i < 64; i++ {
+		dest[63-i] = byte(z[i/8] >> uint64(8*(i%8)))
 	}
 }
 
@@ -169,7 +198,7 @@ func (z *Int) Uint64WithOverflow() (uint64, bool) {
 
 // Clone creates a new Int identical to z
 func (z *Int) Clone() *Int {
-	return &Int{z[0], z[1], z[2], z[3]}
+	return &Int{z[0], z[1], z[2], z[3], z[4], z[5], z[6], z[7]}
 }
 
 // Add sets z to the sum x+y
@@ -603,10 +632,11 @@ func (z *Int) MulMod(x, y, m *Int) *Int {
 
 // Abs interprets x as a two's complement signed number,
 // and sets z to the absolute value
-//   Abs(0)        = 0
-//   Abs(1)        = 1
-//   Abs(2**255)   = -2**255
-//   Abs(2**256-1) = -1
+//
+//	Abs(0)        = 0
+//	Abs(1)        = 1
+//	Abs(2**255)   = -2**255
+//	Abs(2**256-1) = -1
 func (z *Int) Abs(x *Int) *Int {
 	if x[3] < 0x8000000000000000 {
 		return z.Set(x)
@@ -646,9 +676,11 @@ func (z *Int) SDiv(n, d *Int) *Int {
 }
 
 // Sign returns:
+//
 //	-1 if z <  0
 //	 0 if z == 0
 //	+1 if z >  0
+//
 // Where z is interpreted as a two's complement signed number
 func (z *Int) Sign() int {
 	if z.IsZero() {
@@ -663,6 +695,14 @@ func (z *Int) Sign() int {
 // BitLen returns the number of bits required to represent z
 func (z *Int) BitLen() int {
 	switch {
+	case z[7] != 0:
+		return 448 + bits.Len64(z[7])
+	case z[6] != 0:
+		return 384 + bits.Len64(z[6])
+	case z[5] != 0:
+		return 320 + bits.Len64(z[5])
+	case z[4] != 0:
+		return 256 + bits.Len64(z[4])
 	case z[3] != 0:
 		return 192 + bits.Len64(z[3])
 	case z[2] != 0:
@@ -778,15 +818,14 @@ func (z *Int) SetUint64(x uint64) *Int {
 
 // Eq returns true if z == x
 func (z *Int) Eq(x *Int) bool {
-	return (z[0] == x[0]) && (z[1] == x[1]) && (z[2] == x[2]) && (z[3] == x[3])
+	return (z[0] == x[0]) && (z[1] == x[1]) && (z[2] == x[2]) && (z[3] == x[3]) && (z[4] == x[4]) && (z[5] == x[5]) && (z[6] == x[6]) && (z[7] == x[7])
 }
 
 // Cmp compares z and x and returns:
 //
-//   -1 if z <  x
-//    0 if z == x
-//   +1 if z >  x
-//
+//	-1 if z <  x
+//	 0 if z == x
+//	+1 if z >  x
 func (z *Int) Cmp(x *Int) (r int) {
 	if z.Gt(x) {
 		return 1
@@ -819,7 +858,7 @@ func (z *Int) IsZero() bool {
 
 // Clear sets z to 0
 func (z *Int) Clear() *Int {
-	z[3], z[2], z[1], z[0] = 0, 0, 0, 0
+	z[7], z[6], z[5], z[4], z[3], z[2], z[1], z[0] = 0, 0, 0, 0, 0, 0, 0, 0
 	return z
 }
 
@@ -1113,8 +1152,9 @@ func (z *Int) Exp(base, exponent *Int) *Int {
 
 // ExtendSign extends length of two’s complement signed integer,
 // sets z to
-//  - x if byteNum > 31
-//  - x interpreted as a signed number with sign-bit at (byteNum*8+7), extended to the full 256 bits
+//   - x if byteNum > 31
+//   - x interpreted as a signed number with sign-bit at (byteNum*8+7), extended to the full 256 bits
+//
 // and returns z.
 func (z *Int) ExtendSign(x, byteNum *Int) *Int {
 	if byteNum.GtUint64(31) {

@@ -3,6 +3,8 @@
 This is a library specialized at replacing the big.Int library for math based on 256-bit types, used by both 
 [go-ethereum](https://github.com/ethereum/go-ethereum) and [turbo-geth](https://github.com/ledgerwatch/turbo-geth).
 
+>**New 64 byte data handling has been introduced.** Check compatibility with existing systems before using!
+
 ## Benchmarks
 
 Current benchmarks, with tests ending with `big` being the standard `big.Int` library, and `uint256` being this library. 
